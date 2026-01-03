@@ -1,0 +1,7 @@
+name: chat_companion_env
+channels:
+  - defaults
+dependencies:
+  - python=3.11
+  - httpx
+  - pydantic

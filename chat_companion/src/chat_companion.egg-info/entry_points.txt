@@ -1,0 +1,2 @@
+[console_scripts]
+chat-companion = chat_companion.cli:main
