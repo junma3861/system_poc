@@ -38,6 +38,53 @@ pytest tests/test_db_connection.py --cov=src/data_platform/ingestion
 pytest tests/test_db_connection.py::TestDatabaseConnection::test_pgvector_extension_available -v
 ```
 
+## Running Interaction Store Tests
+
+### Prerequisites
+1. **Conda environment** must be activated:
+   ```bash
+   conda activate video-rec
+   ```
+
+2. **Redis and DynamoDB Local** must be running:
+   ```bash
+   docker-compose up -d redis dynamodb
+   docker-compose ps
+   ```
+
+3. **Local DynamoDB endpoint and creds** (for local dev):
+   ```bash
+   export AWS_ACCESS_KEY_ID=local
+   export AWS_SECRET_ACCESS_KEY=local
+   export AWS_REGION=us-east-1
+   export DYNAMODB_ENDPOINT=http://localhost:8001
+   ```
+
+### Running Tests
+```bash
+# Run all interaction store tests
+pytest tests/test_interaction_store.py -v
+
+# Or using conda run (without activating)
+conda run -n video-rec pytest tests/test_interaction_store.py -v
+
+# Run specific test class or case
+pytest tests/test_interaction_store.py::TestInteractionRecording -v
+pytest tests/test_interaction_store.py::TestWriteAsidePattern::test_dynamodb_persistence -v
+```
+
+### Test Coverage
+- ✅ Redis cache write/read (recent interactions, session hash)
+- ✅ DynamoDB persistence (interactions table + metrics table)
+- ✅ Write-aside pattern (cache + durable write)
+- ✅ Event types: CLICK, WATCH_PROGRESS, LIKE, COMPLETE, SKIP
+- ✅ Metrics aggregation (watch_count, like_count, total_watch_time, completion_rate)
+
+### Troubleshooting (Interaction Tests)
+- If DynamoDB port is busy, adjust mapping in docker-compose (default 8001).
+- Ensure Redis is healthy: `docker-compose logs redis | tail`.
+- To reset local data: `docker-compose down -v && rm -rf .volumes/redis .volumes/dynamodb`.
+
 ## Test Coverage
 
 The database connection test suite includes:

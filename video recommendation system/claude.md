@@ -16,7 +16,9 @@ This is a Python-based video recommendation system project.
 ├── config/                 # Configuration files
 │   └── db/                 # Postgres/pgvector init scripts
 ├── .volumes/postgres/      # Local Postgres persistent data
-├── docker-compose.yml      # Local pgvector stack
+├── .volumes/redis/         # Local Redis persistent data
+├── .volumes/dynamodb/      # Local DynamoDB persistent data
+├── docker-compose.yml      # Local pgvector + redis + dynamodb stack
 ├── environment.yml         # Conda environment file
 └── README.md              # Project documentation
 ```
@@ -55,7 +57,7 @@ conda create -n video-rec python=3.10
 # Activate environment
 conda activate video-rec
 
-# Install dependencies
+# Install dependencies (if needed)
 conda install --file requirements.txt
 # Or for pip packages
 pip install -r requirements.txt
@@ -63,10 +65,14 @@ pip install -r requirements.txt
 # Export environment
 conda env export > environment.yml
 ```
-### Local Postgres + pgvector
+
+### Local Postgres + Redis + DynamoDB
 ```bash
 # Boot the database
 docker-compose up -d pgvector
+
+# Boot cache and event store
+docker-compose up -d redis dynamodb
 
 # Tail logs if needed
 docker-compose logs -f pgvector
@@ -74,7 +80,13 @@ docker-compose logs -f pgvector
 # Connection string for ORM/psql
 export DATABASE_URL="postgresql://video_admin:video_admin@localhost:5432/video_rec_dev"
 
-# Inspect manually
+# DynamoDB Local endpoint (dev)
+export AWS_ACCESS_KEY_ID=local
+export AWS_SECRET_ACCESS_KEY=local
+export AWS_REGION=us-east-1
+export DYNAMODB_ENDPOINT="http://localhost:8001"
+
+# Inspect Postgres manually
 docker exec -it video-rec-pgvector psql -U video_admin -d video_rec_dev
 ```
 - `config/db/init.sql` enables the `vector` extension and seeds `users` + `videos` tables.
@@ -92,6 +104,10 @@ python -m src.data_platform.ingestion.sample_pipeline
 ### Running Tests
 ```bash
 pytest tests/
+
+# Focused
+pytest tests/test_db_connection.py -v
+pytest tests/test_interaction_store.py -v
 ```
 
 ### Code Formatting
@@ -104,6 +120,9 @@ isort .
 
 # Lint
 flake8 .
+
+# Type checking
+mypy src/
 ```
 
 ## Best Practices
@@ -128,7 +147,14 @@ flake8 .
 |------|---------|
 | Run application | `python -m src.main` |
 | Run tests | `pytest` |
+| Run DB tests | `pytest tests/test_db_connection.py -v` |
+| Run interaction tests | `pytest tests/test_interaction_store.py -v` |
+| Start services | `docker-compose up -d pgvector redis dynamodb` |
+| Stop services | `docker-compose down` |
+| Reset data (dev) | `docker-compose down -v && rm -rf .volumes/postgres .volumes/redis .volumes/dynamodb` |
 | Format code | `black .` |
+| Sort imports | `isort .` |
+| Lint | `flake8 .` |
 | Check types | `mypy src/` |
 | Generate docs | `sphinx-build docs/ docs/_build` |
 
