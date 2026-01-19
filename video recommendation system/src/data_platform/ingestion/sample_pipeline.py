@@ -11,7 +11,7 @@ from uuid import UUID, uuid4
 
 from psycopg import Connection, connect
 from psycopg.types.json import Json
-from psycopg.types.pgvector import Vector, register_vector
+from pgvector.psycopg import Vector, register_vector
 
 from data_platform.data_model.user import (
     ContextualState,
