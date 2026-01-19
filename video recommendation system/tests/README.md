@@ -109,6 +109,92 @@ The database connection test suite includes:
 - ✅ Insert and query vector data
 - ✅ Temporary table creation with vectors
 
+## Running Ingestion Pipeline Tests
+
+### MicroLens-50k Ingestion Tests
+
+```bash
+# Run all ingestion tests
+pytest tests/test_microlens_ingestion.py -v
+
+# Run specific test class
+pytest tests/test_microlens_ingestion.py::TestMicroLensPairsReader -v
+pytest tests/test_microlens_ingestion.py::TestMicroLensIngestor -v
+
+# Run with coverage
+pytest tests/test_microlens_ingestion.py --cov=src/data_platform/ingestion
+```
+
+### Test Coverage
+
+**CSV Reader Tests:**
+- ✅ Basic CSV parsing with correct column format
+- ✅ Limit parameter for stopping early
+- ✅ Deterministic UUID generation from dataset IDs
+- ✅ Multiple user handling
+- ✅ ISO timestamp parsing and UTC conversion
+- ✅ File not found error handling
+- ✅ Invalid row skipping with logging
+- ✅ All VideoInteraction fields populated correctly
+
+**Ingestor Tests:**
+- ✅ Initialization with interaction store
+- ✅ Successful CSV ingestion with statistics
+- ✅ Handling partial failures
+- ✅ Limit parameter enforcement
+- ✅ Correct interaction object formatting
+
+**Integration Tests:**
+- ✅ End-to-end ingestion from CSV to storage (requires Redis/DynamoDB)
+- ✅ Large batch ingestion (50+ interactions)
+
+**CSV Format Variation Tests:**
+- ✅ Whitespace handling
+- ✅ Quoted fields
+- ✅ UTC timezone support
+
+### Using the Ingestion Pipeline
+
+```bash
+# From command line with conda
+conda run -n video-rec python -m src.data_platform.ingestion.microlens_pipeline \
+  /path/to/MicroLens-50k_pairs.csv
+
+# With limit parameter (first N interactions)
+conda run -n video-rec python -m src.data_platform.ingestion.microlens_pipeline \
+  /path/to/MicroLens-50k_pairs.csv 1000
+
+# From Python code
+from src.data_platform.ingestion.microlens_pipeline import MicroLensIngestor
+from src.data_platform.feature_store.interaction_store import InteractionStore
+from pathlib import Path
+
+store = InteractionStore()
+ingestor = MicroLensIngestor(store)
+stats = ingestor.ingest_from_csv(Path("data/MicroLens-50k_pairs.csv"))
+print(f"Processed: {stats['processed']}, Successful: {stats['successful']}, Failed: {stats['failed']}")
+```
+
+### Dataset Format
+
+The ingestion pipeline expects CSV files in this format:
+
+```csv
+userID,videoID,timestamp
+1,101,2024-01-01T10:00:00
+1,102,2024-01-01T11:00:00
+2,101,2024-01-02T14:30:00
+```
+
+- `userID`: User identifier (converted to UUID)
+- `videoID`: Video identifier (converted to UUID)
+- `timestamp`: ISO format datetime (automatically added UTC if missing)
+
+Default mapping:
+- Event type: `EventType.CLICK` (base interaction)
+- Device: `Device.MOBILE` (MicroLens default)
+- Session: Generated as `session_{userID}_{date}`
+
 ## Troubleshooting
 
 ### Port Conflict Issues
@@ -141,14 +227,30 @@ docker-compose up -d pgvector
 sleep 5  # wait for initialization
 ```
 
+### Redis/DynamoDB Not Available
+Integration tests will skip if storage services aren't running:
+```bash
+# Start all services
+docker-compose up -d
+
+# Verify services
+docker-compose ps
+
+# Check health
+docker-compose exec redis redis-cli ping
+aws dynamodb list-tables --endpoint-url http://localhost:8001 --region us-east-1
+```
+
 ## Environment Variables
 
 Tests respect these environment variables:
-- `DATABASE_URL` - Override default connection string
+- `DATABASE_URL` - Override default PostgreSQL connection string
+- `REDIS_URL` - Override default Redis connection (default: redis://localhost:6379)
+- `AWS_ENDPOINT_URL` - Override DynamoDB endpoint (default: http://localhost:8001)
 - `EMBEDDING_DIM` - Change vector dimension (default: 768)
 
 Example:
 ```bash
 export DATABASE_URL="postgresql://user:pass@host:5432/dbname"
-pytest tests/test_db_connection.py
-```
+export REDIS_URL="redis://localhost:6379"
+pytest tests/test_microlens_ingestion.py

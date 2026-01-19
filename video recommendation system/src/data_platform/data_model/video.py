@@ -45,10 +45,10 @@ class VideoAsset(BaseModel):
     creator_id: UUID
     metadata: VideoMetadata
     content_stats: ContentStats
-    video_embedding: Embedding = Field(..., min_length=1)
+    video_embedding: Embedding = Field(...)
     engagement_metrics: EngagementMetrics
 
     def to_feature_payload(self) -> Dict[str, object]:
         """Flatten the video entity into a JSON-compatible payload."""
 
-        return self.model_dump(mode="json")
+        return self.dict()

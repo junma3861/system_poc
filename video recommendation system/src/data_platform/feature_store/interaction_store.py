@@ -13,7 +13,7 @@ import boto3
 import redis
 from botocore.exceptions import ClientError
 
-from data_platform.data_model.interaction import (
+from ..data_model.interaction import (
     EventType,
     InteractionMetrics,
     VideoInteraction,
@@ -203,7 +203,7 @@ class InteractionStore:
         """
         # Store in user interactions list
         key = REDIS_USER_INTERACTIONS_KEY.format(user_id=str(interaction.user_id))
-        interaction_json = interaction.model_dump_json()
+        interaction_json = interaction.json()
         self.redis_client.lpush(key, interaction_json)
 
         # Keep only last 100 interactions per user
@@ -500,7 +500,7 @@ class InteractionStore:
                 user_id=str(metrics.user_id), video_id=str(metrics.video_id)
             )
             self.redis_client.setex(
-                key, REDIS_METRICS_TTL, metrics.model_dump_json()
+                key, REDIS_METRICS_TTL, metrics.json()
             )
         except Exception as e:
             logger.warning(f"Error caching metrics in Redis: {e}")

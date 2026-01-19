@@ -42,11 +42,11 @@ class UserProfile(BaseModel):
     user_id: UUID
     demographics: Demographics
     subscriptions: List[CreatorID] = Field(default_factory=list)
-    user_embedding: Embedding = Field(..., min_length=1)
+    user_embedding: Embedding = Field(...)
     contextual_state: ContextualState
     historical_aggs: HistoricalAggregations
 
     def to_feature_payload(self) -> Dict[str, object]:
         """Flatten the user for downstream storage/serving layers."""
 
-        return self.model_dump(mode="json")
+        return self.dict()

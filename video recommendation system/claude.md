@@ -101,6 +101,40 @@ python -m src.data_platform.ingestion.sample_pipeline
 - Uses psycopg + pgvector to upsert two sample users and videos.
 - Respects `DATABASE_URL` and optional `EMBEDDING_DIM` env vars for local overrides.
 
+### Running Ingestion Tests
+```bash
+# Run ingestion pipeline tests
+pytest tests/test_microlens_ingestion.py -v
+
+# Test CSV reader
+pytest tests/test_microlens_ingestion.py::TestMicroLensPairsReader -v
+
+# Test ingestor
+pytest tests/test_microlens_ingestion.py::TestMicroLensIngestor -v
+
+# Integration tests (requires Docker Compose services)
+pytest tests/test_microlens_ingestion.py::TestMicroLensIntegration -v
+```
+
+### Using the Ingestion Pipeline
+```bash
+# Ingest MicroLens-50k dataset (first 1000 records for testing)
+python -m src.data_platform.ingestion.microlens_pipeline \
+  /path/to/MicroLens-50k_pairs.csv 1000
+
+# Ingest full dataset
+python -m src.data_platform.ingestion.microlens_pipeline \
+  /path/to/MicroLens-50k_pairs.csv
+
+# Or from Python
+from src.data_platform.ingestion.microlens_pipeline import MicroLensIngestor
+from src.data_platform.feature_store.interaction_store import InteractionStore
+
+store = InteractionStore()
+ingestor = MicroLensIngestor(store)
+stats = ingestor.ingest_from_csv(Path("data/MicroLens-50k_pairs.csv"))
+```
+
 ### Running Tests
 ```bash
 pytest tests/
@@ -108,6 +142,7 @@ pytest tests/
 # Focused
 pytest tests/test_db_connection.py -v
 pytest tests/test_interaction_store.py -v
+pytest tests/test_microlens_ingestion.py -v
 ```
 
 ### Code Formatting
@@ -149,6 +184,8 @@ mypy src/
 | Run tests | `pytest` |
 | Run DB tests | `pytest tests/test_db_connection.py -v` |
 | Run interaction tests | `pytest tests/test_interaction_store.py -v` |
+| Run ingestion tests | `pytest tests/test_microlens_ingestion.py -v` |
+| Ingest MicroLens data | `python -m src.data_platform.ingestion.microlens_pipeline <csv_path> [limit]` |
 | Start services | `docker-compose up -d pgvector redis dynamodb` |
 | Stop services | `docker-compose down` |
 | Reset data (dev) | `docker-compose down -v && rm -rf .volumes/postgres .volumes/redis .volumes/dynamodb` |
@@ -158,7 +195,29 @@ mypy src/
 | Check types | `mypy src/` |
 | Generate docs | `sphinx-build docs/ docs/_build` |
 
+## Dataset Integration
+
+### MicroLens-50k Integration
+The project includes an ingestion pipeline for the MicroLens-50k dataset.
+
+**Dataset Information:**
+- Source: https://recsys.westlake.edu.cn/MicroLens-50k-Dataset/
+- Format: CSV with columns [userID, videoID, timestamp]
+- Purpose: Populate interaction history for recommendation system
+
+**Schema Mapping:**
+- `userID` → deterministic UUID (namespace: MICROLENS_NAMESPACE)
+- `videoID` → deterministic UUID (namespace: MICROLENS_NAMESPACE)
+- `timestamp` → ISO datetime (UTC)
+- Event Type: `CLICK` (base interaction)
+- Device: `MOBILE` (MicroLens default)
+
+**Storage:**
+- Redis: Session cache (24hr TTL) + recent interactions (max 100)
+- DynamoDB: Persistent event store with metrics aggregation
+
 ## Notes
 - Keep dependencies minimal and well-documented
 - Prefer composition over inheritance
 - Write code that is easy to test and maintain
+- CSV ingestion supports deterministic UUID generation for reproducibility

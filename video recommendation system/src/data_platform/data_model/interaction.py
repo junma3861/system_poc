@@ -7,7 +7,6 @@ from enum import Enum
 from typing import Optional
 from uuid import UUID
 
-from pydantic import ConfigDict
 from pydantic import BaseModel, Field
 
 
@@ -54,7 +53,8 @@ class VideoInteraction(BaseModel):
             return round((self.watch_time / self.duration) * 100, 2)
         return None
 
-        model_config = ConfigDict(use_enum_values=True)
+    class Config:
+        use_enum_values = True
 
 
 class InteractionMetrics(BaseModel):
@@ -71,6 +71,5 @@ class InteractionMetrics(BaseModel):
         default=0.0, description="Computed engagement metric"
     )
 
-    model_config = ConfigDict(
-        json_encoders={datetime: lambda v: v.isoformat()}
-    )
+    class Config:
+        use_enum_values = True
